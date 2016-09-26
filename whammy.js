@@ -4,16 +4,14 @@
 	vid.compile()
 */
 
-window.Whammy = (function(){
+
+var Whammy = (function(){
 	// in this case, frames has a very specific meaning, which will be
 	// detailed once i finish writing the code
 
-	function toWebM(frames, outputAsArray){
+	function toWebM(frames){
 		var info = checkFrames(frames);
-
-		//max duration by cluster in milliseconds
-		var CLUSTER_MAX_DURATION = 30000;
-
+		var counter = 0;
 		var EBML = [
 			{
 				"id": 0x1a45dfa3, // EBML
@@ -84,7 +82,7 @@ window.Whammy = (function(){
 									},
 									{
 										"data": 1,
-										"id": 0x73c5 // TrackUID
+										"id": 0x63c5 // TrackUID
 									},
 									{
 										"data": 0,
@@ -124,106 +122,33 @@ window.Whammy = (function(){
 						]
 					},
 					{
-						"id": 0x1c53bb6b, // Cues
+						"id": 0x1f43b675, // Cluster
 						"data": [
-							//cue insertion point
-						]
+							{
+								"data": 0,
+								"id": 0xe7 // Timecode
+							}
+						].concat(frames.map(function(webp){
+							var block = makeSimpleBlock({
+								discardable: 0,
+								frame: webp.data.slice(4),
+								invisible: 0,
+								keyframe: 1,
+								lacing: 0,
+								trackNum: 1,
+								timecode: Math.round(counter)
+							});
+							counter += webp.duration;
+							return {
+								data: block,
+								id: 0xa3
+							};
+						}))
 					}
-
-					//cluster insertion point
 				]
 			}
-		 ];
-
-
-		var segment = EBML[1];
-		var cues = segment.data[2];
-
-		//Generate clusters (max duration)
-		var frameNumber = 0;
-		var clusterTimecode = 0;
-		while(frameNumber < frames.length){
-
-			var cuePoint = {
-					"id": 0xbb, // CuePoint
-					"data": [
-						{
-							"data": Math.round(clusterTimecode),
-							"id": 0xb3 // CueTime
-						},
-						{
-							"id": 0xb7, // CueTrackPositions
-							"data": [
-								{
-									"data": 1,
-									"id": 0xf7 // CueTrack
-								},
-								{
-									"data": 0, // to be filled in when we know it
-									"size": 8,
-									"id": 0xf1 // CueClusterPosition
-								}
-							]
-						}
-					]
-				};
-
-			cues.data.push(cuePoint);
-
-			var clusterFrames = [];
-			var clusterDuration = 0;
-			do {
-				clusterFrames.push(frames[frameNumber]);
-				clusterDuration += frames[frameNumber].duration;
-				frameNumber++;
-			}while(frameNumber < frames.length && clusterDuration < CLUSTER_MAX_DURATION);
-
-			var clusterCounter = 0;
-			var cluster = {
-					"id": 0x1f43b675, // Cluster
-					"data": [
-						{
-							"data": Math.round(clusterTimecode),
-							"id": 0xe7 // Timecode
-						}
-					].concat(clusterFrames.map(function(webp){
-						var block = makeSimpleBlock({
-							discardable: 0,
-							frame: webp.data.slice(4),
-							invisible: 0,
-							keyframe: 1,
-							lacing: 0,
-							trackNum: 1,
-							timecode: Math.round(clusterCounter)
-						});
-						clusterCounter += webp.duration;
-						return {
-							data: block,
-							id: 0xa3
-						};
-					}))
-				}
-
-			//Add cluster to segment
-			segment.data.push(cluster);
-			clusterTimecode += clusterDuration;
-		}
-
-		//First pass to compute cluster positions
-		var position = 0;
-		for(var i = 0; i < segment.data.length; i++){
-			if (i >= 3) {
-				cues.data[i-3].data[1].data[1].data = position;
-			}
-			var data = generateEBML([segment.data[i]], outputAsArray);
-			position += data.size || data.byteLength || data.length;
-			if (i != 2) { // not cues
-				//Save results to avoid having to encode everything twice
-				segment.data[i] = data;
-			}
-		}
-
-		return generateEBML(EBML, outputAsArray)
+		];
+		return generateEBML(EBML)
 	}
 
 	// sums the lengths of all the frames and gets the duration, woo
@@ -235,7 +160,7 @@ window.Whammy = (function(){
 		for(var i = 1; i < frames.length; i++){
 			if(frames[i].width != width) throw "Frame " + (i + 1) + " has a different width";
 			if(frames[i].height != height) throw "Frame " + (i + 1) + " has a different height";
-			if(frames[i].duration < 0 || frames[i].duration > 0x7fff) throw "Frame " + (i + 1) + " has a weird duration (must be between 0 and 32767)";
+			if(frames[i].duration < 0) throw "Frame " + (i + 1) + " has a weird duration";
 			duration += frames[i].duration;
 		}
 		return {
@@ -255,15 +180,6 @@ window.Whammy = (function(){
 		return new Uint8Array(parts.reverse());
 	}
 
-	function numToFixedBuffer(num, size){
-		var parts = new Uint8Array(size);
-		for(var i = size - 1; i >= 0; i--){
-			parts[i] = num & 0xff;
-			num = num >> 8;
-		}
-		return parts;
-	}
-
 	function strToBuffer(str){
 		// return new Blob([str]);
 
@@ -277,6 +193,7 @@ window.Whammy = (function(){
 		// 	return e.charCodeAt(0)
 		// }))
 	}
+
 
 
 	//sorry this is ugly, and sort of hard to understand exactly why this was done
@@ -293,25 +210,17 @@ window.Whammy = (function(){
 		return new Uint8Array(data);
 	}
 
-	function generateEBML(json, outputAsArray){
+	function generateEBML(json){
 		var ebml = [];
 		for(var i = 0; i < json.length; i++){
-			if (!('id' in json[i])){
-				//already encoded blob or byteArray
-				ebml.push(json[i]);
-				continue;
-			}
-
 			var data = json[i].data;
-			if(typeof data == 'object') data = generateEBML(data, outputAsArray);
-			if(typeof data == 'number') data = ('size' in json[i]) ? numToFixedBuffer(data, json[i].size) : bitsToBuffer(data.toString(2));
+			// console.log(data);
+			if(typeof data == 'object') data = generateEBML(data);
+			if(typeof data == 'number') data = bitsToBuffer(data.toString(2));
 			if(typeof data == 'string') data = strToBuffer(data);
+			// console.log(data)
 
-			if(data.length){
-				var z = z;
-			}
-
-			var len = data.size || data.byteLength || data.length;
+			var len = data.size || data.byteLength;
 			var zeroes = Math.ceil(Math.ceil(Math.log(len)/Math.log(2))/8);
 			var size_str = len.toString(2);
 			var padded = (new Array((zeroes * 7 + 7 + 1) - size_str.length)).join('0') + size_str;
@@ -327,31 +236,9 @@ window.Whammy = (function(){
 
 
 		}
-
-		//output as blob or byteArray
-		if(outputAsArray){
-			//convert ebml to an array
-			var buffer = toFlatArray(ebml)
-			return new Uint8Array(buffer);
-		}else{
-			return new Blob(ebml, {type: "video/webm"});
-		}
-	}
-
-	function toFlatArray(arr, outBuffer){
-		if(outBuffer == null){
-			outBuffer = [];
-		}
-		for(var i = 0; i < arr.length; i++){
-			if(typeof arr[i] == 'object'){
-				//an array
-				toFlatArray(arr[i], outBuffer)
-			}else{
-				//a simple element
-				outBuffer.push(arr[i]);
-			}
-		}
-		return outBuffer;
+		return new Blob(ebml, {
+			type: "video/webm"
+		});
 	}
 
 	//OKAY, so the following two functions are the string-based old stuff, the reason they're
@@ -448,23 +335,18 @@ window.Whammy = (function(){
 
 		while (offset < string.length) {
 			var id = string.substr(offset, 4);
+			var len = parseInt(string.substr(offset + 4, 4).split('').map(function(i){
+				var unpadded = i.charCodeAt(0).toString(2);
+				return (new Array(8 - unpadded.length + 1)).join('0') + unpadded
+			}).join(''),2);
+			var data = string.substr(offset + 4 + 4, len);
+			offset += 4 + 4 + len;
 			chunks[id] = chunks[id] || [];
+
 			if (id == 'RIFF' || id == 'LIST') {
-				var len = parseInt(string.substr(offset + 4, 4).split('').map(function(i){
-					var unpadded = i.charCodeAt(0).toString(2);
-					return (new Array(8 - unpadded.length + 1)).join('0') + unpadded
-				}).join(''),2);
-				var data = string.substr(offset + 4 + 4, len);
-				offset += 4 + 4 + len;
 				chunks[id].push(parseRIFF(data));
-			} else if (id == 'WEBP') {
-				// Use (offset + 8) to skip past "VP8 "/"VP8L"/"VP8X" field after "WEBP"
-				chunks[id].push(string.substr(offset + 8));
-				offset = string.length;
 			} else {
-				// Unknown chunk type; push entire payload
-				chunks[id].push(string.substr(offset + 4));
-				offset = string.length;
+				chunks[id].push(data);
 			}
 		}
 		return chunks;
@@ -495,77 +377,31 @@ window.Whammy = (function(){
 
 	WhammyVideo.prototype.add = function(frame, duration){
 		if(typeof duration != 'undefined' && this.duration) throw "you can't pass a duration if the fps is set";
-		if(typeof duration == 'undefined' && !this.duration) throw "if you don't have the fps set, you need to have durations here.";
-		if(frame.canvas){ //CanvasRenderingContext2D
-			frame = frame.canvas;
-		}
-		if(frame.toDataURL){
-			// frame = frame.toDataURL('image/webp', this.quality);
-			// quickly store image data so we don't block cpu. encode in compile method.
-			frame = frame.getContext('2d').getImageData(0, 0, frame.width, frame.height);
-		}else if(typeof frame != "string"){
-			throw "frame must be a a HTMLCanvasElement, a CanvasRenderingContext2D or a DataURI formatted string"
-		}
-		if (typeof frame === "string" && !(/^data:image\/webp;base64,/ig).test(frame)) {
+		if (!(/^data:image\/webp;base64,/ig).test(frame)) {
 			throw "Input must be formatted properly as a base64 encoded DataURI of type image/webp";
 		}
 		this.frames.push({
 			image: frame,
 			duration: duration || this.duration
-		});
-	};
+		})
+	}
 
-	// deferred webp encoding. Draws image data to canvas, then encodes as dataUrl
-	WhammyVideo.prototype.encodeFrames = function(callback){
-
-		if(this.frames[0].image instanceof ImageData){
-
-			var frames = this.frames;
-			var tmpCanvas = document.createElement('canvas');
-			var tmpContext = tmpCanvas.getContext('2d');
-			tmpCanvas.width = this.frames[0].image.width;
-			tmpCanvas.height = this.frames[0].image.height;
-
-			var encodeFrame = function(index){
-				console.log('encodeFrame', index);
-				var frame = frames[index];
-				tmpContext.putImageData(frame.image, 0, 0);
-				frame.image = tmpCanvas.toDataURL('image/webp', this.quality);
-				if(index < frames.length-1){
-					setTimeout(function(){ encodeFrame(index + 1); }, 1);
-				}else{
-					callback();
-				}
-			}.bind(this);
-
-			encodeFrame(0);
-		}else{
-			callback();
-		}
-	};
-
-	WhammyVideo.prototype.compile = function(outputAsArray, callback){
-
-		this.encodeFrames(function(){
-
-			var webm = new toWebM(this.frames.map(function(frame){
-				var webp = parseWebP(parseRIFF(atob(frame.image.slice(23))));
-				webp.duration = frame.duration;
-				return webp;
-			}), outputAsArray);
-			callback(webm);
-			
-		}.bind(this));
-	};
+	WhammyVideo.prototype.compile = function(){
+		return new toWebM(this.frames.map(function(frame){
+			var webp = parseWebP(parseRIFF(atob(frame.image.slice(23))));
+			webp.duration = frame.duration;
+			return webp;
+		}))
+	}
 
 	return {
 		Video: WhammyVideo,
-		fromImageArray: function(images, fps, outputAsArray){
+		fromImageArray: function(images, fps){
 			return toWebM(images.map(function(image){
 				var webp = parseWebP(parseRIFF(atob(image.slice(23))))
 				webp.duration = 1000 / fps;
 				return webp;
-			}), outputAsArray)
+			}))
 		},
 		toWebM: toWebM
 		// expose methods of madness
