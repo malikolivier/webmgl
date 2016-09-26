@@ -7,7 +7,7 @@
     Video: WebMGLVideo,
     fromImageArray: function (images, fps) {
       return toWebM(images.map(function (image) {
-        var webp = parseWebP(parseRIFF(atob(image.slice(23))))
+        var webp = parseWebP(parseRIFF(root.atob(image.slice(23))))
         webp.duration = 1000 / fps
         return webp
       }))
@@ -15,10 +15,15 @@
     toWebM: toWebM
   }
 
+  var atob = (window && window.atob) ? window.atob : require('atob')
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = WebMGL
   } else {
     root.WebMGL = WebMGL
+  }
+
+  function WebMGLError (message) {
+    return new Error('[WebMGL] ' + message)
   }
 
   // in this case, frames has a very specific meaning, which will be
@@ -169,13 +174,19 @@
   // sums the lengths of all the frames and gets the duration, woo
 
   function checkFrames (frames) {
-    var width = frames[0].width,
-      height = frames[0].height,
-      duration = frames[0].duration
+    var width = frames[0].width
+    var height = frames[0].height
+    var duration = frames[0].duration
     for (var i = 1; i < frames.length; i++) {
-      if (frames[i].width != width) throw 'Frame ' + (i + 1) + ' has a different width'
-      if (frames[i].height != height) throw 'Frame ' + (i + 1) + ' has a different height'
-      if (frames[i].duration < 0) throw 'Frame ' + (i + 1) + ' has a weird duration'
+      if (frames[i].width !== width) {
+        throw WebMGLError('Frame ' + (i + 1) + ' has a different width')
+      }
+      if (frames[i].height !== height) {
+        throw WebMGLError('Frame ' + (i + 1) + ' has a different height')
+      }
+      if (frames[i].duration < 0) {
+        throw WebMGLError('Frame ' + (i + 1) + ' has a weird duration')
+      }
       duration += frames[i].duration
     }
     return {
@@ -187,7 +198,7 @@
 
   function numToBuffer (num) {
     var parts = []
-    while(num > 0){
+    while (num > 0) {
       parts.push(num & 0xff)
       num = num >> 8
     }
@@ -227,9 +238,9 @@
     for (var i = 0; i < json.length; i++) {
       var data = json[i].data
       // console.log(data)
-      if (typeof data == 'object') data = generateEBML(data)
-      if (typeof data == 'number') data = bitsToBuffer(data.toString(2))
-      if (typeof data == 'string') data = strToBuffer(data)
+      if (typeof data === 'object') data = generateEBML(data)
+      if (typeof data === 'number') data = bitsToBuffer(data.toString(2))
+      if (typeof data === 'string') data = strToBuffer(data)
       // console.log(data)
 
       var len = data.size || data.byteLength
@@ -245,47 +256,16 @@
       ebml.push(numToBuffer(json[i].id))
       ebml.push(bitsToBuffer(size))
       ebml.push(data)
-
     }
-    return new Blob(ebml, {
-      type: 'video/webm'
-    })
-  }
-
-  // OKAY, so the following two functions are the string-based old stuff, the reason they're
-  // still sort of in here, is that they're actually faster than the new blob stuff because
-  // getAsFile isn't widely implemented, or at least, it doesn't work in chrome, which is the
-  // only browser which supports get as webp
-
-  // Converting between a string of 0010101001's and binary back and forth is probably inefficient
-  // TODO: get rid of this function
-  function toBinStr_old (bits) {
-    var data = ''
-    var pad = (bits.length % 8) ? (new Array(1 + 8 - (bits.length % 8))).join('0') : ''
-    bits = pad + bits
-    for (var i = 0; i < bits.length; i += 8) {
-      data += String.fromCharCode(parseInt(bits.substr(i, 8), 2))
+    if (root.Blob) {
+      // In browser environment
+      return new root.Blob(ebml, {
+        type: 'video/webm'
+      })
+    } else {
+      var buffer = Buffer.from(ebml)
+      return Uint8Array.from(buffer).buffer
     }
-    return data
-  }
-
-  function generateEBML_old (json) {
-    var ebml = ''
-    for (var i = 0; i < json.length; i++) {
-      var data = json[i].data
-      if (typeof data == 'object') data = generateEBML_old(data)
-      if (typeof data == 'number') data = toBinStr_old(data.toString(2))
-
-      var len = data.length
-      var zeroes = Math.ceil(Math.ceil(Math.log(len) / Math.log(2)) / 8)
-      var size_str = len.toString(2)
-      var padded = (new Array((zeroes * 7 + 7 + 1) - size_str.length)).join('0') + size_str
-      var size = (new Array(zeroes)).join('0') + '1' + padded
-
-      ebml += toBinStr_old(json[i].id.toString(2)) + toBinStr_old(size) + data
-
-    }
-    return ebml
   }
 
   // woot, a function that's actually written for this project!
@@ -299,11 +279,12 @@
     if (data.lacing) flags |= (data.lacing << 1)
     if (data.discardable) flags |= 1
     if (data.trackNum > 127) {
-      throw 'TrackNumber > 127 not supported'
+      throw WebMGLError('TrackNumber > 127 not supported')
     }
-    var out = [data.trackNum | 0x80, data.timecode >> 8, data.timecode & 0xff, flags].map(function (e) {
-        return String.fromCharCode(e)
-      }).join('') + data.frame
+    var out = [data.trackNum | 0x80, data.timecode >> 8, data.timecode & 0xff, flags].map(
+        function (e) {
+          return String.fromCharCode(e)
+        }).join('') + data.frame
 
     return out
   }
@@ -316,15 +297,13 @@
     var frame_start = VP8.indexOf('\x9d\x01\x2a') // A VP8 keyframe starts with the 0x9d012a header
     for (var i = 0, c = []; i < 4; i++) c[i] = VP8.charCodeAt(frame_start + 3 + i)
 
-    var width, horizontal_scale, height, vertical_scale, tmp
+    var width, height, tmp
 
     // the code below is literally copied verbatim from the bitstream spec
     tmp = (c[1] << 8) | c[0]
     width = tmp & 0x3FFF
-    horizontal_scale = tmp >> 14
     tmp = (c[3] << 8) | c[2]
     height = tmp & 0x3FFF
-    vertical_scale = tmp >> 14
     return {
       width: width,
       height: height,
@@ -354,7 +333,7 @@
       offset += 4 + 4 + len
       chunks[id] = chunks[id] || []
 
-      if (id == 'RIFF' || id == 'LIST') {
+      if (id === 'RIFF' || id === 'LIST') {
         chunks[id].push(parseRIFF(data))
       } else {
         chunks[id].push(data)
@@ -387,9 +366,11 @@
   }
 
   WebMGLVideo.prototype.add = function (frame, duration) {
-    if (typeof duration != 'undefined' && this.duration) throw "you can't pass a duration if the fps is set"
+    if (typeof duration !== 'undefined' && this.duration) {
+      throw WebMGLError('Cannot pass a duration if FPS is set')
+    }
     if (!(/^data:image\/webp;base64,/ig).test(frame)) {
-      throw 'Input must be formatted properly as a base64 encoded DataURI of type image/webp'
+      throw WebMGLError('Input must be formatted properly as a base64 encoded DataURI of type image/webp')
     }
     this.frames.push({
       image: frame,
@@ -399,13 +380,12 @@
 
   WebMGLVideo.prototype.compile = function () {
     if (this.frames.length === 0) {
-      throw '[WebMGL] You did not add any frame to the Video!'
+      throw WebMGLError('You did not add any frame to the Video!')
     }
-    return new toWebM(this.frames.map(function (frame) {
-      var webp = parseWebP(parseRIFF(atob(frame.image.slice(23))))
+    return toWebM(this.frames.map(function (frame) {
+      var webp = parseWebP(parseRIFF(root.atob(frame.image.slice(23))))
       webp.duration = frame.duration
       return webp
     }))
   }
-
 }).call(this)

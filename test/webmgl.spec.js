@@ -9,6 +9,6 @@ describe('WebMGL', function () {
     var video = new WebMGL.Video()
     expect(function () {
       video.compile()
-    }).toThrow('[WebMGL] You did not add any frame to the Video!')
+    }).toThrowError(/\[WebMGL\]/)
   })
 })

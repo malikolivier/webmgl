@@ -16,14 +16,14 @@ module.exports = function (grunt) {
       },
       app: {
         src: [
-          '**/*.js', '!node_modules/**', '!test/jasmine*/**'
+          '**/*.js', '!node_modules/**', '!test/jasmine*/**', '!**/*.min.js'
         ]
       }
     },
 
     watch: {
       js: {
-        files: ['**/*.js', '!node_modules/**', '!test/jasmine*/**'],
+        files: ['**/*.js', '!node_modules/**', '!test/jasmine*/**', '!**/*.min.js'],
         tasks: ['standard']
       }
     },
@@ -31,7 +31,8 @@ module.exports = function (grunt) {
     uglify: {
       js: {
         files: {
-        'webmgl.min.js': ['webmgl.js']}
+          'webmgl.min.js': ['webmgl.js']
+        }
       }
     }
   })

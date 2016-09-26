@@ -1,11 +1,10 @@
 {
   "name": "webmgl",
-  "version": "0.0.0",
-  "description": "A tiny WebM encoder that works well with HTML5 canvas (including WebGL). Originally a fork of Whammy",
+  "version": "0.0.1",
+  "description": "A tiny WebM encoder that works well with HTML5 canvas (including WebGL). Forked from Whammy",
   "main": "webmgl.js",
   "scripts": {
-    "test": "./node_modules/.bin/jasmine-node ./test",
-    "browser": "phantomjs test/run-jasmine.js test/jasmine.html"
+    "test": "./node_modules/.bin/jasmine-node ./test"
   },
   "repository": {
     "type": "git",
@@ -23,5 +22,8 @@
     "grunt-contrib-watch": "^1.0.0",
     "grunt-standard": "^2.0.0",
     "jasmine-node": "^1.14.5"
+  },
+  "dependencies": {
+    "atob": "^2.0.3"
   }
 }

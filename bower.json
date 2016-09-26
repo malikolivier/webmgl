@@ -1,0 +1,17 @@
+{
+  "name": "webmgl",
+  "description": "A tiny WebM encoder that works well with HTML5 canvas (including WebGL). Forked from Whammy",
+  "main": "webmgl.js",
+  "authors": [
+    "Malik Olivier Boussejra <malik@boussejra.com> (http://boussejra.com/)"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/malikolivier/webmgl",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}
