@@ -1,0 +1,9 @@
+test/
+
+.travis.yml
+bower.json
+Gruntfile.js
+
+*.min.js
+
+.npmignore
