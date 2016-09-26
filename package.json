@@ -1,6 +1,6 @@
 {
   "name": "webmgl",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "A tiny WebM encoder that works well with HTML5 canvas (including WebGL). Forked from Whammy",
   "main": "webmgl.js",
   "scripts": {
