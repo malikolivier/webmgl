@@ -16,14 +16,14 @@ module.exports = function (grunt) {
       },
       app: {
         src: [
-          '**/*.js', '!node_modules/**'
+          '**/*.js', '!node_modules/**', '!test/jasmine*/**'
         ]
       }
     },
 
     watch: {
       js: {
-        files: ['**/*.js', '!node_modules/**'],
+        files: ['**/*.js', '!node_modules/**', '!test/jasmine*/**'],
         tasks: ['standard']
       }
     }

@@ -14,6 +14,13 @@
     },
     toWebM: toWebM
   }
+
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = WebMGL
+  } else {
+    root.WebMGL = WebMGL
+  }
+
   // in this case, frames has a very specific meaning, which will be
   // detailed once i finish writing the code
 
@@ -399,12 +406,6 @@
       webp.duration = frame.duration
       return webp
     }))
-  }
-
-  if (typeof module !== 'undefined' && module.exports) {
-    module.exports = WebMGL
-  } else {
-    root.WebMGL = WebMGL
   }
 
 }).call(this)

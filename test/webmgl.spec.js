@@ -7,6 +7,8 @@ if (typeof WebMGL === 'undefined') {
 describe('WebMGL', function () {
   it('Encode empty video', function () {
     var video = new WebMGL.Video()
-    expect(video.compile()).toBe('doing something')
+    expect(function () {
+      video.compile()
+    }).toThrow('[WebMGL] You did not add any frame to the Video!')
   })
 })
