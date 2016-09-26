@@ -1,7 +1,7 @@
 /* eslint-env jasmine */
 
 if (typeof WebMGL === 'undefined') {
-  var WebMGL = require('../webmgl')
+  var WebMGL = require('..')
 }
 
 describe('WebMGL', function () {

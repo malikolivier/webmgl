@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>WebMGL jasmine test</title>
+
+  <link rel="shortcut icon" type="image/png" href="jasmine-2.5.2/jasmine_favicon.png">
+  <link rel="stylesheet" type="text/css" href="jasmine-2.5.2/jasmine.css">
+
+  <script type="text/javascript" src="jasmine-2.5.2/jasmine.js"></script>
+  <script type="text/javascript" src="jasmine-2.5.2/jasmine-html.js"></script>
+  <script type="text/javascript" src="jasmine-2.5.2/boot.js"></script>
+
+  <script src="../webmgl.js"></script>
+  <script src="webmgl.spec.js"></script>
+
+  <script type="text/javascript">
+    (function() {
+      var jasmineEnv = jasmine.getEnv();
+      jasmineEnv.updateInterval = 1000;
+      var htmlReporter = new jasmine.HtmlReporter();
+      jasmineEnv.addReporter(htmlReporter);
+      jasmineEnv.specFilter = function(spec) {
+        return htmlReporter.specFilter(spec);
+      };
+      var currentWindowOnload = window.onload;
+      window.onload = function() {
+        if (currentWindowOnload) {
+          currentWindowOnload();
+        }
+        execJasmine();
+      };
+      function execJasmine() {
+        jasmineEnv.execute();
+      }
+    })();
+  </script>
+</head>
+<body>
+</body>
+</html>
