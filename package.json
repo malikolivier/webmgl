@@ -19,6 +19,7 @@
   "homepage": "https://github.com/malikolivier/webmgl#readme",
   "devDependencies": {
     "grunt": "^1.0.1",
+    "grunt-contrib-uglify": "^2.0.0",
     "grunt-contrib-watch": "^1.0.0",
     "grunt-standard": "^2.0.0",
     "jasmine-node": "^1.14.5"

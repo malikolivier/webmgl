@@ -26,6 +26,13 @@ module.exports = function (grunt) {
         files: ['**/*.js', '!node_modules/**', '!test/jasmine*/**'],
         tasks: ['standard']
       }
+    },
+
+    uglify: {
+      js: {
+        files: {
+        'webmgl.min.js': ['webmgl.js']}
+      }
     }
   })
 
@@ -36,6 +43,7 @@ module.exports = function (grunt) {
   // make sure you have run npm install so our app can find these
   grunt.loadNpmTasks('grunt-standard')
   grunt.loadNpmTasks('grunt-contrib-watch')
+  grunt.loadNpmTasks('grunt-contrib-uglify')
 
   grunt.registerTask('default', ['watch'])
 }
