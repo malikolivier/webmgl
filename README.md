@@ -12,11 +12,21 @@ So it's a video encoder in that it generates `.webm` files which should play in 
 
 But, there isn't too much you can do on the client side in the ways of encoding stuff. And whatever you do, you basically can't do interframe compression (aside from some really rudimentary delta encoding). More or less, when your only alternative is to maintain an array of DataURL encoded frames or encoding it (rather slowly) as a [GIF](https://github.com/antimatter15/jsgif), a fast but inefficient WebM encoder stops looking too bad.
 
+## Disclaimer
+
+This piece of code is only passively maintained. It works and is tested on Chrome.
+It is known to not work on Firefox as Firefox does not support WebP.
+
+PR/issues are welcome. WebPack support is untested and probably not supported without some work (#1).
+Bower is supported.
+
 ## Demo
 
 http://antimatter15.github.com/whammy/clock.html
 
 http://www.sysord.fr/Sysord/ressource_whammy.jsf
+
+http://boussejra.com/rotateme/
 
 ## Basic Usage
 
