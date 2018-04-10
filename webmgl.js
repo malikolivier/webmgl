@@ -149,9 +149,10 @@
                 'id': 0xe7 // Timecode
               }
             ].concat(frames.map(function (webp) {
+              const START_CODE = '\x9d\x01\x2a'
               var block = makeSimpleBlock({
                 discardable: 0,
-                frame: webp.data.slice(4),
+                frame: webp.data.slice(webp.data.indexOf(START_CODE) - 3),
                 invisible: 0,
                 keyframe: 1,
                 lacing: 0,
